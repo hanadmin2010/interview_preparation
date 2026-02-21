@@ -1,0 +1,867 @@
+openapi: 3.0.3
+info:
+  title: Wealth Portfolio Platform API
+  version: 1.0.0
+  description: >
+    API-first Wealth Management platform exposing portfolio/position views and real-time risk insights.
+    Contract is designed for backwards-compatible evolution and enterprise governance (auth scopes,
+    correlation IDs, standard errors, pagination, idempotency for write endpoints).
+
+servers:
+  - url: https://api.example.com
+    description: Production (replace)
+  - url: https://api-dev.example.com
+    description: Dev (replace)
+
+tags:
+  - name: Accounts
+  - name: Portfolios
+  - name: RiskInsights
+  - name: Alerts
+
+security:
+  - OAuth2: [portfolio.read]
+
+paths:
+  /v1/clients/{clientId}/accounts:
+    get:
+      tags: [Accounts]
+      summary: List investment accounts for a client (entitlement-checked)
+      operationId: listClientAccounts
+      parameters:
+        - $ref: "#/components/parameters/ClientId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Accounts page
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountsListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/accounts/{accountId}/portfolios:
+    get:
+      tags: [Portfolios]
+      summary: List portfolios within an investment account
+      operationId: listAccountPortfolios
+      security:
+        - OAuth2: [portfolio.read]
+      parameters:
+        - $ref: "#/components/parameters/AccountId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Portfolios page
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfoliosListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/portfolios/{portfolioId}/positions:
+    get:
+      tags: [Portfolios]
+      summary: Get positions (holdings) for a portfolio
+      operationId: getPortfolioPositions
+      security:
+        - OAuth2: [portfolio.read]
+      parameters:
+        - $ref: "#/components/parameters/PortfolioId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/AssetClass"
+        - $ref: "#/components/parameters/Symbol"
+        - $ref: "#/components/parameters/MinMarketValue"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Positions page
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PositionsListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/portfolios/{portfolioId}/summary:
+    get:
+      tags: [Portfolios]
+      summary: Portfolio summary view (market value, cash, PnL, top holdings)
+      operationId: getPortfolioSummary
+      security:
+        - OAuth2: [portfolio.read]
+      parameters:
+        - $ref: "#/components/parameters/PortfolioId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Summary
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortfolioSummaryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/portfolios/{portfolioId}/risk-metrics:
+    get:
+      tags: [RiskInsights]
+      summary: Real-time risk metrics for a portfolio (low-latency)
+      operationId: getRiskMetrics
+      security:
+        - OAuth2: [risk.read]
+      parameters:
+        - $ref: "#/components/parameters/PortfolioId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Risk metrics
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskMetricsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/portfolios/{portfolioId}/drift:
+    get:
+      tags: [RiskInsights]
+      summary: Allocation drift vs target model (rebalance signal)
+      operationId: getAllocationDrift
+      security:
+        - OAuth2: [risk.read]
+      parameters:
+        - $ref: "#/components/parameters/PortfolioId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Drift report
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriftResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/portfolios/{portfolioId}/alerts:
+    get:
+      tags: [Alerts]
+      summary: List active alerts for a portfolio
+      operationId: listPortfolioAlerts
+      security:
+        - OAuth2: [alerts.read]
+      parameters:
+        - $ref: "#/components/parameters/PortfolioId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Alerts page
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertsListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/alerts/subscriptions:
+    post:
+      tags: [Alerts]
+      summary: Create/update alert subscription preferences (idempotent write)
+      operationId: upsertAlertSubscription
+      security:
+        - OAuth2: [alerts.write]
+      parameters:
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertSubscriptionRequest"
+      responses:
+        "202":
+          description: Subscription accepted
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AckResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/portfolios/{portfolioId}/rebalance-simulations:
+    post:
+      tags: [RiskInsights]
+      summary: Run a what-if rebalance simulation (idempotent)
+      operationId: createRebalanceSimulation
+      security:
+        - OAuth2: [risk.write]
+      parameters:
+        - $ref: "#/components/parameters/PortfolioId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RebalanceSimulationRequest"
+      responses:
+        "202":
+          description: Simulation accepted
+          headers:
+            X-Correlation-Id:
+              $ref: "#/components/headers/XCorrelationId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RebalanceSimulationAckResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      description: OAuth2 scopes enforced at the edge. Use Cognito/OIDC provider in implementation.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/oauth2/authorize
+          tokenUrl: https://auth.example.com/oauth2/token
+          scopes:
+            portfolio.read: Read accounts/portfolios/positions
+            portfolio.write: Write portfolio-related preferences/actions
+            risk.read: Read risk metrics/drift/insights
+            risk.write: Create simulations/recommendations actions
+            alerts.read: Read alerts
+            alerts.write: Create/update alert subscriptions
+
+  headers:
+    XCorrelationId:
+      description: Correlation ID propagated end-to-end for tracing/auditing.
+      schema:
+        type: string
+
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Optional correlation ID; if not provided, server generates one.
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+      description: Required for write endpoints to ensure idempotent behavior.
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+      description: Page size for cursor-based pagination.
+
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Opaque cursor token for the next page.
+
+    ClientId:
+      name: clientId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 3
+
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 3
+
+    PortfolioId:
+      name: portfolioId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 3
+
+    AssetClass:
+      name: assetClass
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [EQUITY, ETF, MUTUAL_FUND, FIXED_INCOME, CASH, ALTERNATIVES, OTHER]
+      description: Optional filter by asset class.
+
+    Symbol:
+      name: symbol
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Optional filter by ticker/symbol.
+
+    MinMarketValue:
+      name: minMarketValue
+      in: query
+      required: false
+      schema:
+        type: number
+        minimum: 0
+      description: Optional filter by minimum market value.
+
+  responses:
+    BadRequest:
+      description: Invalid request payload/parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Unauthorized:
+      description: Missing/invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Forbidden:
+      description: Authenticated but not entitled/authorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Conflict:
+      description: Idempotency conflict / duplicate request with different payload
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    # ---------- Common envelopes ----------
+    Meta:
+      type: object
+      properties:
+        nextCursor:
+          type: string
+          nullable: true
+        requestId:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+      required: [requestId, generatedAt]
+
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          example: ENTITLEMENT_DENIED
+        message:
+          type: string
+          example: You are not authorized to access this resource.
+        details:
+          type: object
+          additionalProperties: true
+        correlationId:
+          type: string
+      required: [errorCode, message, correlationId]
+
+    AckResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [ACCEPTED]
+            requestId:
+              type: string
+          required: [status, requestId]
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    # ---------- Accounts ----------
+    Account:
+      type: object
+      properties:
+        accountId:
+          type: string
+        accountType:
+          type: string
+          enum: [BROKERAGE, IRA, ROTH_IRA, TRUST, JOINT, OTHER]
+        nickname:
+          type: string
+          nullable: true
+        currency:
+          type: string
+          example: USD
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+      required: [accountId, accountType, currency, status]
+
+    AccountsListResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            accounts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Account"
+          required: [accounts]
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    # ---------- Portfolios ----------
+    Portfolio:
+      type: object
+      properties:
+        portfolioId:
+          type: string
+        accountId:
+          type: string
+        portfolioType:
+          type: string
+          enum: [TAXABLE, RETIREMENT, GOAL_BASED, MANAGED, OTHER]
+        name:
+          type: string
+        baseCurrency:
+          type: string
+          example: USD
+      required: [portfolioId, accountId, portfolioType, name, baseCurrency]
+
+    PortfoliosListResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            portfolios:
+              type: array
+              items:
+                $ref: "#/components/schemas/Portfolio"
+          required: [portfolios]
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    Position:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: AAPL
+        assetClass:
+          type: string
+          enum: [EQUITY, ETF, MUTUAL_FUND, FIXED_INCOME, CASH, ALTERNATIVES, OTHER]
+        quantity:
+          type: number
+          example: 12.5
+        price:
+          type: number
+          example: 187.23
+        marketValue:
+          type: number
+          example: 2340.38
+        costBasis:
+          type: number
+          nullable: true
+        weightPct:
+          type: number
+          description: Weight as percentage of portfolio market value (0-100)
+      required: [symbol, assetClass, quantity, price, marketValue, weightPct]
+
+    PositionsListResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            portfolioId:
+              type: string
+            positions:
+              type: array
+              items:
+                $ref: "#/components/schemas/Position"
+          required: [portfolioId, positions]
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    PortfolioSummary:
+      type: object
+      properties:
+        portfolioId:
+          type: string
+        marketValue:
+          type: number
+        cashValue:
+          type: number
+        dayPnL:
+          type: number
+        totalPnL:
+          type: number
+        topHoldings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Position"
+      required: [portfolioId, marketValue, cashValue, dayPnL, totalPnL, topHoldings]
+
+    PortfolioSummaryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/PortfolioSummary"
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    # ---------- Risk & Insights ----------
+    RiskLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+
+    RiskMetrics:
+      type: object
+      properties:
+        portfolioId:
+          type: string
+        riskScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        riskLevel:
+          $ref: "#/components/schemas/RiskLevel"
+        concentrationTop1Pct:
+          type: number
+          example: 18.2
+        concentrationTop5Pct:
+          type: number
+          example: 46.7
+        equityPct:
+          type: number
+        fixedIncomePct:
+          type: number
+        cashPct:
+          type: number
+        volatilityProxy:
+          type: string
+          enum: [LOW, MODERATE, ELEVATED]
+        modelVersion:
+          type: string
+          example: rules-v1
+        scoredAt:
+          type: string
+          format: date-time
+      required:
+        [portfolioId, riskScore, riskLevel, concentrationTop1Pct, concentrationTop5Pct,
+         equityPct, fixedIncomePct, cashPct, volatilityProxy, modelVersion, scoredAt]
+
+    RiskMetricsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/RiskMetrics"
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    AllocationBucket:
+      type: object
+      properties:
+        assetClass:
+          type: string
+          enum: [EQUITY, ETF, MUTUAL_FUND, FIXED_INCOME, CASH, ALTERNATIVES, OTHER]
+        currentPct:
+          type: number
+        targetPct:
+          type: number
+        driftPct:
+          type: number
+      required: [assetClass, currentPct, targetPct, driftPct]
+
+    DriftReport:
+      type: object
+      properties:
+        portfolioId:
+          type: string
+        driftScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Higher means more drift from target model.
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllocationBucket"
+        rebalanceSuggested:
+          type: boolean
+        computedAt:
+          type: string
+          format: date-time
+      required: [portfolioId, driftScore, buckets, rebalanceSuggested, computedAt]
+
+    DriftResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/DriftReport"
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    # ---------- Alerts ----------
+    AlertSeverity:
+      type: string
+      enum: [INFO, WARNING, CRITICAL]
+
+    Alert:
+      type: object
+      properties:
+        alertId:
+          type: string
+        portfolioId:
+          type: string
+        type:
+          type: string
+          enum:
+            - DRIFT_THRESHOLD_BREACH
+            - CONCENTRATION_RISK
+            - VOLATILITY_ELEVATED
+            - CASH_TOO_HIGH
+        severity:
+          $ref: "#/components/schemas/AlertSeverity"
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+      required: [alertId, portfolioId, type, severity, message, createdAt, active]
+
+    AlertsListResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            portfolioId:
+              type: string
+            alerts:
+              type: array
+              items:
+                $ref: "#/components/schemas/Alert"
+          required: [portfolioId, alerts]
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
+
+    AlertSubscriptionRequest:
+      type: object
+      properties:
+        clientId:
+          type: string
+        channels:
+          type: array
+          items:
+            type: string
+            enum: [EMAIL, SMS, PUSH]
+        rules:
+          type: object
+          properties:
+            driftThreshold:
+              type: integer
+              minimum: 0
+              maximum: 100
+              example: 60
+            concentrationTop1ThresholdPct:
+              type: number
+              example: 20
+            volatilityProxyThreshold:
+              type: string
+              enum: [MODERATE, ELEVATED]
+          additionalProperties: false
+      required: [clientId, channels, rules]
+      additionalProperties: false
+
+    # ---------- Rebalance simulation ----------
+    RebalanceSimulationRequest:
+      type: object
+      properties:
+        targetModel:
+          type: array
+          description: Target allocation model by asset class
+          items:
+            type: object
+            properties:
+              assetClass:
+                type: string
+                enum: [EQUITY, ETF, MUTUAL_FUND, FIXED_INCOME, CASH, ALTERNATIVES, OTHER]
+              targetPct:
+                type: number
+            required: [assetClass, targetPct]
+        constraints:
+          type: object
+          properties:
+            maxTrades:
+              type: integer
+              minimum: 0
+              example: 10
+            taxAware:
+              type: boolean
+              default: false
+          additionalProperties: false
+      required: [targetModel]
+      additionalProperties: false
+
+    RebalanceSimulationAckResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [ACCEPTED]
+            requestId:
+              type: string
+            simulationId:
+              type: string
+          required: [status, requestId, simulationId]
+        meta:
+          $ref: "#/components/schemas/Meta"
+      required: [data, meta]
